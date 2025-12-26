@@ -2,6 +2,8 @@ package hotel;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -33,6 +35,7 @@ public class HotelManagementGUI {
         initializeRooms();
         initializeFoodMenu();
         initializeGUI();
+        frame.setVisible(true);
     }
 
     private void initializeRooms() {
@@ -177,13 +180,16 @@ public class HotelManagementGUI {
         historyButton.addActionListener(e -> viewBookingHistory());
         billButton.addActionListener(e -> generateInvoice());
         reportButton.addActionListener(e -> generateReport());
-        searchButton.addActionListener(e -> searchCustomers());
+        searchButton.addActionListener(e -> filterCustomers());
         maintenanceButton.addActionListener(e -> setRoomMaintenance());
         pickCheckInButton.addActionListener(e -> pickDate(checkInField));
         pickCheckOutButton.addActionListener(e -> pickDate(checkOutField));
 
-        updateNotifications();
-        frame.setVisible(true);
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { filterCustomers(); }
+            public void removeUpdate(DocumentEvent e) { filterCustomers(); }
+            public void insertUpdate(DocumentEvent e) { filterCustomers(); }
+        });
     }
 
     private void viewRooms() {
@@ -339,12 +345,19 @@ public class HotelManagementGUI {
     }
 
     private void viewBookingHistory() {
-        if (allCustomers.isEmpty()) {
-            JOptionPane.showMessageDialog(frame, "No booking history available.");
-            return;
+        StringBuilder sb = new StringBuilder("=== All Bookings ===\n");
+        sb.append("Current Bookings:\n");
+        if (customers.isEmpty()) {
+            sb.append("No current bookings.\n");
+        } else {
+            for (Customer c : customers) sb.append(c).append("\n");
         }
-        StringBuilder sb = new StringBuilder("=== Booking History ===\n");
-        for (Customer c : allCustomers) sb.append(c).append("\n");
+        sb.append("\nPast Bookings:\n");
+        if (allCustomers.isEmpty()) {
+            sb.append("No past bookings.\n");
+        } else {
+            for (Customer c : allCustomers) sb.append(c).append("\n");
+        }
         JOptionPane.showMessageDialog(frame, sb.toString());
     }
 
@@ -409,14 +422,13 @@ public class HotelManagementGUI {
         JOptionPane.showMessageDialog(frame, report);
     }
 
-    private void searchCustomers() {
+    private void filterCustomers() {
         String query = searchField.getText().trim().toLowerCase();
         if (query.isEmpty()) {
             updateBookingTable();
             return;
         }
         tableModel.setRowCount(0);
-        boolean found = false;
         for (Customer c : customers) {
             if (c.getName().toLowerCase().contains(query) || c.getPhone().contains(query) || c.getEmail().toLowerCase().contains(query) || String.valueOf(c.getRoomNumber()).contains(query)) {
                 Room room = rooms.stream().filter(r -> r.getRoomNumber() == c.getRoomNumber()).findFirst().orElse(null);
@@ -437,13 +449,8 @@ public class HotelManagementGUI {
                             discount,
                             c.getGrandTotal(room.getPricePerDay(), taxRate, discount)
                     });
-                    found = true;
                 }
             }
-        }
-        if (!found) {
-            JOptionPane.showMessageDialog(frame, "No customers found matching the search query.");
-            updateBookingTable(); // Reset to show all
         }
     }
 
