@@ -5,21 +5,31 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 public class HotelManagementGUI {
     private JFrame frame;
     private JTable bookingTable;
     private DefaultTableModel tableModel;
-    private JTextField nameField, roomField, daysField;
+    private JTextField nameField, phoneField, emailField, roomField, checkInField, checkOutField, searchField, discountField;
     private JButton bookButton, cancelButton, orderFoodButton, viewButton, availableRoomsButton;
-    private JButton historyButton, billButton, reportButton;
+    private JButton historyButton, billButton, reportButton, searchButton, maintenanceButton, availableButton;
+    private JButton checkInButton, checkOutButton, markCleanButton;
+    private JButton pickCheckInButton, pickCheckOutButton;
+    private JTextArea notificationArea;
     private ArrayList<Room> rooms = new ArrayList<>();
     private ArrayList<Customer> customers = new ArrayList<>();
     private ArrayList<Customer> allCustomers = new ArrayList<>();
     private ArrayList<Food> foodMenu = new ArrayList<>();
+    private DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private double taxRate = 10.0; // 10% tax
 
     public HotelManagementGUI() {
+        if (!login()) return;
         initializeRooms();
         initializeFoodMenu();
         initializeGUI();
@@ -46,59 +56,133 @@ public class HotelManagementGUI {
         foodMenu.add(new Food("Masala Chai", 1.5, Food.Category.BEVERAGE));
     }
 
+    private boolean login() {
+        JPanel panel = new JPanel(new GridLayout(2, 2));
+        JTextField userField = new JTextField();
+        JPasswordField passField = new JPasswordField();
+        panel.add(new JLabel("Username:"));
+        panel.add(userField);
+        panel.add(new JLabel("Password:"));
+        panel.add(passField);
+        int option = JOptionPane.showConfirmDialog(null, panel, "Login", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            String user = userField.getText();
+            String pass = new String(passField.getPassword());
+            if ("admin".equals(user) && "password".equals(pass)) {
+                return true;
+            } else {
+                JOptionPane.showMessageDialog(null, "Invalid credentials!");
+                return login();
+            }
+        }
+        return false;
+    }
+
     private void initializeGUI() {
         frame = new JFrame("Hotel Management System");
-        frame.setSize(950, 500);
+        frame.setSize(1400, 800);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        JPanel topPanel = new JPanel(new FlowLayout());
         nameField = new JTextField(10);
+        phoneField = new JTextField(10);
+        emailField = new JTextField(15);
         roomField = new JTextField(5);
-        daysField = new JTextField(5);
+        checkInField = new JTextField(10);
+        checkOutField = new JTextField(10);
+        searchField = new JTextField(15);
+        discountField = new JTextField(5);
 
-        topPanel.add(new JLabel("Name:"));
-        topPanel.add(nameField);
-        topPanel.add(new JLabel("Room Number:"));
-        topPanel.add(roomField);
-        topPanel.add(new JLabel("Days:"));
-        topPanel.add(daysField);
-
-        bookButton = new JButton("Book Room");
-        cancelButton = new JButton("Cancel Booking");
+        bookButton = new JButton("Reserve Room");
+        cancelButton = new JButton("Cancel Reservation");
+        checkInButton = new JButton("Check-in");
+        checkOutButton = new JButton("Check-out");
         orderFoodButton = new JButton("Order Food");
         viewButton = new JButton("View Rooms");
         availableRoomsButton = new JButton("Available Rooms");
         historyButton = new JButton("Booking History");
         billButton = new JButton("Generate Bill");
         reportButton = new JButton("Reports");
+        searchButton = new JButton("Search");
+        maintenanceButton = new JButton("Set Maintenance");
+        availableButton = new JButton("Mark Available");
+        markCleanButton = new JButton("Mark Clean");
+        pickCheckInButton = new JButton("Pick");
+        pickCheckOutButton = new JButton("Pick");
 
-        topPanel.add(bookButton);
-        topPanel.add(cancelButton);
-        topPanel.add(orderFoodButton);
-        topPanel.add(viewButton);
-        topPanel.add(availableRoomsButton);
-        topPanel.add(historyButton);
-        topPanel.add(billButton);
-        topPanel.add(reportButton);
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+
+        JPanel inputPanel = new JPanel(new FlowLayout());
+        inputPanel.add(new JLabel("Name:"));
+        inputPanel.add(nameField);
+        inputPanel.add(new JLabel("Phone:"));
+        inputPanel.add(phoneField);
+        inputPanel.add(new JLabel("Email:"));
+        inputPanel.add(emailField);
+        inputPanel.add(new JLabel("Room Number:"));
+        inputPanel.add(roomField);
+        inputPanel.add(new JLabel("Check-in (yyyy-MM-dd):"));
+        inputPanel.add(checkInField);
+        inputPanel.add(pickCheckInButton);
+        inputPanel.add(new JLabel("Check-out (yyyy-MM-dd):"));
+        inputPanel.add(checkOutField);
+        inputPanel.add(pickCheckOutButton);
+        inputPanel.add(new JLabel("Discount ($):"));
+        inputPanel.add(discountField);
+        inputPanel.add(new JLabel("Search Customer:"));
+        inputPanel.add(searchField);
+
+        JPanel buttonPanel = new JPanel(new GridLayout(2, 7, 5, 5));
+        buttonPanel.add(bookButton);
+        buttonPanel.add(cancelButton);
+        buttonPanel.add(checkInButton);
+        buttonPanel.add(checkOutButton);
+        buttonPanel.add(orderFoodButton);
+        buttonPanel.add(viewButton);
+        buttonPanel.add(availableRoomsButton);
+        buttonPanel.add(historyButton);
+        buttonPanel.add(billButton);
+        buttonPanel.add(reportButton);
+        buttonPanel.add(searchButton);
+        buttonPanel.add(maintenanceButton);
+        buttonPanel.add(availableButton);
+        buttonPanel.add(markCleanButton);
+
+        topPanel.add(inputPanel);
+        topPanel.add(buttonPanel);
 
         frame.add(topPanel, BorderLayout.NORTH);
 
-        String[] columns = {"Customer", "Room", "Days", "Room Bill", "Food Bill", "Grand Total"};
+        String[] columns = {"Customer", "Phone", "Email", "Room", "Status", "Check-in", "Check-out", "Room Bill", "Food Bill", "Tax", "Discount", "Grand Total"};
         tableModel = new DefaultTableModel(columns, 0);
         bookingTable = new JTable(tableModel);
         frame.add(new JScrollPane(bookingTable), BorderLayout.CENTER);
 
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(new JLabel("Notifications:"), BorderLayout.NORTH);
+        notificationArea = new JTextArea(5, 50);
+        notificationArea.setEditable(false);
+        bottomPanel.add(new JScrollPane(notificationArea), BorderLayout.CENTER);
+        frame.add(bottomPanel, BorderLayout.SOUTH);
+
         // Button actions
         viewButton.addActionListener(e -> viewRooms());
         availableRoomsButton.addActionListener(e -> viewAvailableRooms());
-        bookButton.addActionListener(e -> bookRoom());
-        cancelButton.addActionListener(e -> cancelBooking());
+        bookButton.addActionListener(e -> reserveRoom());
+        cancelButton.addActionListener(e -> cancelReservation());
+        checkInButton.addActionListener(e -> checkInGuest());
+        checkOutButton.addActionListener(e -> checkOutGuest());
         orderFoodButton.addActionListener(e -> orderFoodWithQuantity());
         historyButton.addActionListener(e -> viewBookingHistory());
         billButton.addActionListener(e -> generateInvoice());
         reportButton.addActionListener(e -> generateReport());
+        searchButton.addActionListener(e -> searchCustomers());
+        maintenanceButton.addActionListener(e -> setRoomMaintenance());
+        pickCheckInButton.addActionListener(e -> pickDate(checkInField));
+        pickCheckOutButton.addActionListener(e -> pickDate(checkOutField));
 
+        updateNotifications();
         frame.setVisible(true);
     }
 
@@ -114,15 +198,19 @@ public class HotelManagementGUI {
         JOptionPane.showMessageDialog(frame, sb.toString());
     }
 
-    private void bookRoom() {
+    private void reserveRoom() {
         String name = nameField.getText().trim();
-        int roomNumber, stayDays;
+        String phone = phoneField.getText().trim();
+        String email = emailField.getText().trim();
+        int roomNumber;
+        LocalDate checkIn, checkOut;
         try {
             roomNumber = Integer.parseInt(roomField.getText());
-            stayDays = Integer.parseInt(daysField.getText());
-            if (stayDays <= 0) throw new NumberFormatException();
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(frame, "Invalid input!");
+            checkIn = LocalDate.parse(checkInField.getText(), dateFormatter);
+            checkOut = LocalDate.parse(checkOutField.getText(), dateFormatter);
+            if (checkOut.isBefore(checkIn) || checkOut.isEqual(checkIn)) throw new DateTimeParseException("Invalid dates", "", 0);
+        } catch (NumberFormatException | DateTimeParseException e) {
+            JOptionPane.showMessageDialog(frame, "Invalid input! Use yyyy-MM-dd for dates.");
             return;
         }
         Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
@@ -130,25 +218,67 @@ public class HotelManagementGUI {
             JOptionPane.showMessageDialog(frame, "Room not available!");
             return;
         }
-        room.bookRoom();
-        customers.add(new Customer(name, roomNumber, stayDays));
+        room.reserveRoom();
+        customers.add(new Customer(name, phone, email, roomNumber, checkIn, checkOut));
         updateBookingTable();
-        JOptionPane.showMessageDialog(frame, "Room booked successfully!");
+        updateNotifications();
+        JOptionPane.showMessageDialog(frame, "Room reserved successfully!");
     }
 
-    private void cancelBooking() {
+    private void cancelReservation() {
         int roomNumber;
         try { roomNumber = Integer.parseInt(roomField.getText()); }
         catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
 
-        Customer c = customers.stream().filter(cs -> cs.getRoomNumber() == roomNumber).findFirst().orElse(null);
+        Customer c = customers.stream().filter(cs -> cs.getRoomNumber() == roomNumber && cs.getStatus() == Customer.Status.RESERVED).findFirst().orElse(null);
         Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
         if (c != null && room != null) {
             customers.remove(c);
             allCustomers.add(c);
-            room.checkOut();
+            room.setAvailable();
             updateBookingTable();
-            JOptionPane.showMessageDialog(frame, "Booking canceled!");
+            updateNotifications();
+            JOptionPane.showMessageDialog(frame, "Reservation canceled!");
+        } else {
+            JOptionPane.showMessageDialog(frame, "No active reservation for this room!");
+        }
+    }
+
+    private void checkInGuest() {
+        int roomNumber;
+        try { roomNumber = Integer.parseInt(roomField.getText()); }
+        catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
+
+        Customer c = customers.stream().filter(cs -> cs.getRoomNumber() == roomNumber && cs.getStatus() == Customer.Status.RESERVED).findFirst().orElse(null);
+        Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
+        if (c != null && room != null && room.isReserved()) {
+            c.setStatus(Customer.Status.CHECKED_IN);
+            room.checkIn();
+            updateBookingTable();
+            updateNotifications();
+            JOptionPane.showMessageDialog(frame, "Guest checked in!");
+        } else {
+            JOptionPane.showMessageDialog(frame, "No reservation to check-in!");
+        }
+    }
+
+    private void checkOutGuest() {
+        int roomNumber;
+        try { roomNumber = Integer.parseInt(roomField.getText()); }
+        catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
+
+        Customer c = customers.stream().filter(cs -> cs.getRoomNumber() == roomNumber && cs.getStatus() == Customer.Status.CHECKED_IN).findFirst().orElse(null);
+        Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
+        if (c != null && room != null && room.isOccupied()) {
+            c.setStatus(Customer.Status.CHECKED_OUT);
+            room.checkOut();
+            customers.remove(c);
+            allCustomers.add(c);
+            updateBookingTable();
+            updateNotifications();
+            JOptionPane.showMessageDialog(frame, "Guest checked out!");
+        } else {
+            JOptionPane.showMessageDialog(frame, "No checked-in guest for this room!");
         }
     }
 
@@ -157,8 +287,8 @@ public class HotelManagementGUI {
         try { roomNumber = Integer.parseInt(roomField.getText()); }
         catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
 
-        Customer customer = customers.stream().filter(c -> c.getRoomNumber() == roomNumber).findFirst().orElse(null);
-        if (customer == null) { JOptionPane.showMessageDialog(frame, "Room not booked!"); return; }
+        Customer customer = customers.stream().filter(c -> c.getRoomNumber() == roomNumber && c.getStatus() == Customer.Status.CHECKED_IN).findFirst().orElse(null);
+        if (customer == null) { JOptionPane.showMessageDialog(frame, "Guest not checked in!"); return; }
 
         JPanel panel = new JPanel(new GridLayout(foodMenu.size(), 3));
         JCheckBox[] checkBoxes = new JCheckBox[foodMenu.size()];
@@ -188,19 +318,31 @@ public class HotelManagementGUI {
         for (Customer c : customers) {
             Room room = rooms.stream().filter(r -> r.getRoomNumber() == c.getRoomNumber()).findFirst().orElse(null);
             if (room != null) {
+                double discount = 0;
+                try { discount = Double.parseDouble(discountField.getText()); } catch (Exception e) {}
                 tableModel.addRow(new Object[]{
                         c.getName(),
+                        c.getPhone(),
+                        c.getEmail(),
                         c.getRoomNumber(),
-                        c.getStayDays(),
+                        c.getStatus(),
+                        c.getCheckInDate(),
+                        c.getCheckOutDate(),
                         c.getRoomBill(room.getPricePerDay()),
                         c.getFoodBill(),
-                        c.getGrandTotal(room.getPricePerDay())
+                        c.getTax(taxRate),
+                        discount,
+                        c.getGrandTotal(room.getPricePerDay(), taxRate, discount)
                 });
             }
         }
     }
 
     private void viewBookingHistory() {
+        if (allCustomers.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "No booking history available.");
+            return;
+        }
         StringBuilder sb = new StringBuilder("=== Booking History ===\n");
         for (Customer c : allCustomers) sb.append(c).append("\n");
         JOptionPane.showMessageDialog(frame, sb.toString());
@@ -215,9 +357,16 @@ public class HotelManagementGUI {
         Room r = rooms.stream().filter(ro -> ro.getRoomNumber() == roomNumber).findFirst().orElse(null);
         if (c == null || r == null) { JOptionPane.showMessageDialog(frame,"Room not booked!"); return; }
 
-        StringBuilder invoice = new StringBuilder("Invoice for " + c.getName() + "\nRoom: " + r.getRoomNumber() +
+        double discount = 0;
+        try { discount = Double.parseDouble(discountField.getText()); } catch (Exception e) {}
+
+        StringBuilder invoice = new StringBuilder("Invoice for " + c.getName() + " (" + c.getPhone() + ")\nEmail: " + c.getEmail() +
+                "\nRoom: " + r.getRoomNumber() + "\nStatus: " + c.getStatus() +
+                "\nCheck-in: " + c.getCheckInDate() + "\nCheck-out: " + c.getCheckOutDate() +
                 "\nDays: " + c.getStayDays() + "\nRoom Bill: $" + c.getRoomBill(r.getPricePerDay()) +
-                "\nFood Bill: $" + c.getFoodBill() + "\nGrand Total: $" + c.getGrandTotal(r.getPricePerDay()));
+                "\nFood Bill: $" + c.getFoodBill() + "\nSubtotal: $" + c.getSubtotal(r.getPricePerDay()) +
+                "\nTax (" + taxRate + "%): $" + c.getTax(taxRate) + "\nDiscount: $" + discount +
+                "\nGrand Total: $" + c.getGrandTotal(r.getPricePerDay(), taxRate, discount));
 
         JOptionPane.showMessageDialog(frame, invoice.toString());
 
@@ -230,6 +379,9 @@ public class HotelManagementGUI {
     private void generateReport() {
         double totalRevenue = 0, roomRevenue = 0, foodRevenue = 0;
         int totalBookings = allCustomers.size() + customers.size();
+        int totalRooms = rooms.size();
+        long occupiedRooms = rooms.stream().filter(r -> !r.isAvailable()).count();
+        double occupancyRate = (double) occupiedRooms / totalRooms * 100;
 
         for (Customer c : customers) {
             Room r = rooms.stream().filter(ro -> ro.getRoomNumber() == c.getRoomNumber()).findFirst().orElse(null);
@@ -251,9 +403,147 @@ public class HotelManagementGUI {
         String report = "=== Hotel Report ===\nTotal Bookings: " + totalBookings +
                 "\nTotal Revenue: $" + totalRevenue +
                 "\nRoom Revenue: $" + roomRevenue +
-                "\nFood Revenue: $" + foodRevenue;
+                "\nFood Revenue: $" + foodRevenue +
+                "\nOccupancy Rate: " + String.format("%.2f", occupancyRate) + "%";
 
         JOptionPane.showMessageDialog(frame, report);
+    }
+
+    private void searchCustomers() {
+        String query = searchField.getText().trim().toLowerCase();
+        if (query.isEmpty()) {
+            updateBookingTable();
+            return;
+        }
+        tableModel.setRowCount(0);
+        boolean found = false;
+        for (Customer c : customers) {
+            if (c.getName().toLowerCase().contains(query) || c.getPhone().contains(query) || c.getEmail().toLowerCase().contains(query) || String.valueOf(c.getRoomNumber()).contains(query)) {
+                Room room = rooms.stream().filter(r -> r.getRoomNumber() == c.getRoomNumber()).findFirst().orElse(null);
+                if (room != null) {
+                    double discount = 0;
+                    try { discount = Double.parseDouble(discountField.getText()); } catch (Exception e) {}
+                    tableModel.addRow(new Object[]{
+                            c.getName(),
+                            c.getPhone(),
+                            c.getEmail(),
+                            c.getRoomNumber(),
+                            c.getStatus(),
+                            c.getCheckInDate(),
+                            c.getCheckOutDate(),
+                            c.getRoomBill(room.getPricePerDay()),
+                            c.getFoodBill(),
+                            c.getTax(taxRate),
+                            discount,
+                            c.getGrandTotal(room.getPricePerDay(), taxRate, discount)
+                    });
+                    found = true;
+                }
+            }
+        }
+        if (!found) {
+            JOptionPane.showMessageDialog(frame, "No customers found matching the search query.");
+            updateBookingTable(); // Reset to show all
+        }
+    }
+
+    private void setRoomMaintenance() {
+        int roomNumber;
+        try { roomNumber = Integer.parseInt(roomField.getText()); }
+        catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
+
+        Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
+        if (room == null) {
+            JOptionPane.showMessageDialog(frame, "Room not found!");
+            return;
+        }
+        if (!room.isAvailable()) {
+            JOptionPane.showMessageDialog(frame, "Room is currently in use!");
+            return;
+        }
+        room.setMaintenance();
+        JOptionPane.showMessageDialog(frame, "Room set to maintenance!");
+    }
+
+    private void markRoomAvailable() {
+        int roomNumber;
+        try { roomNumber = Integer.parseInt(roomField.getText()); }
+        catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
+
+        Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
+        if (room == null) {
+            JOptionPane.showMessageDialog(frame, "Room not found!");
+            return;
+        }
+        room.setAvailable();
+        JOptionPane.showMessageDialog(frame, "Room marked as available!");
+    }
+
+    private void markRoomClean() {
+        int roomNumber;
+        try { roomNumber = Integer.parseInt(roomField.getText()); }
+        catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
+
+        Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
+        if (room == null) {
+            JOptionPane.showMessageDialog(frame, "Room not found!");
+            return;
+        }
+        if (room.getStatus() == Room.Status.DIRTY) {
+            room.setAvailable();
+            JOptionPane.showMessageDialog(frame, "Room marked as clean and available!");
+        } else {
+            JOptionPane.showMessageDialog(frame, "Room is not dirty!");
+        }
+    }
+
+    private void pickDate(JTextField field) {
+        LocalDate current = LocalDate.now();
+        try {
+            current = LocalDate.parse(field.getText(), dateFormatter);
+        } catch (Exception e) {
+            // Use today if invalid
+        }
+
+        JPanel panel = new JPanel(new GridLayout(3, 2));
+        JSpinner yearSpinner = new JSpinner(new SpinnerNumberModel(current.getYear(), 2020, 2030, 1));
+        JSpinner monthSpinner = new JSpinner(new SpinnerNumberModel(current.getMonthValue(), 1, 12, 1));
+        JSpinner daySpinner = new JSpinner(new SpinnerNumberModel(current.getDayOfMonth(), 1, 31, 1));
+
+        panel.add(new JLabel("Year:"));
+        panel.add(yearSpinner);
+        panel.add(new JLabel("Month:"));
+        panel.add(monthSpinner);
+        panel.add(new JLabel("Day:"));
+        panel.add(daySpinner);
+
+        int option = JOptionPane.showConfirmDialog(frame, panel, "Select Date", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            int year = (Integer) yearSpinner.getValue();
+            int month = (Integer) monthSpinner.getValue();
+            int day = (Integer) daySpinner.getValue();
+            try {
+                LocalDate selected = LocalDate.of(year, month, day);
+                field.setText(selected.format(dateFormatter));
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(frame, "Invalid date selected.");
+            }
+        }
+    }
+
+    private void updateNotifications() {
+        LocalDate today = LocalDate.now();
+        LocalDate tomorrow = today.plusDays(1);
+        StringBuilder sb = new StringBuilder();
+        for (Customer c : customers) {
+            if (c.getCheckOutDate().isEqual(today)) {
+                sb.append("Check-out today: ").append(c.getName()).append(" (Room ").append(c.getRoomNumber()).append(")\n");
+            } else if (c.getCheckOutDate().isEqual(tomorrow)) {
+                sb.append("Check-out tomorrow: ").append(c.getName()).append(" (Room ").append(c.getRoomNumber()).append(")\n");
+            }
+        }
+        if (sb.length() == 0) sb.append("No upcoming check-outs.");
+        notificationArea.setText(sb.toString());
     }
 
     public static void main(String[] args) { SwingUtilities.invokeLater(HotelManagementGUI::new); }
