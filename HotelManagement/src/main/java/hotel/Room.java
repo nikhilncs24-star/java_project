@@ -1,7 +1,7 @@
 package hotel;
 
 public class Room {
-    public enum Status {AVAILABLE, BOOKED, CLEANING, MAINTENANCE}
+    public enum Status {AVAILABLE, RESERVED, OCCUPIED, CLEANING, MAINTENANCE, DIRTY}
 
     private int roomNumber;
     private String type;
@@ -21,10 +21,16 @@ public class Room {
     public Status getStatus() { return status; }
 
     public boolean isAvailable() { return status == Status.AVAILABLE; }
-    public void bookRoom() { status = Status.BOOKED; }
-    public void checkOut() { status = Status.CLEANING; }
+    public boolean isReserved() { return status == Status.RESERVED; }
+    public boolean isOccupied() { return status == Status.OCCUPIED; }
+
+    public void reserveRoom() { status = Status.RESERVED; }
+    public void checkIn() { status = Status.OCCUPIED; }
+    public void checkOut() { status = Status.DIRTY; }
+    public void setCleaning() { status = Status.CLEANING; }
     public void setMaintenance() { status = Status.MAINTENANCE; }
     public void setAvailable() { status = Status.AVAILABLE; }
+    public void markDirty() { status = Status.DIRTY; }
 
     @Override
     public String toString() {
