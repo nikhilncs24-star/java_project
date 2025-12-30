@@ -182,6 +182,8 @@ public class HotelManagementGUI {
         reportButton.addActionListener(e -> generateReport());
         searchButton.addActionListener(e -> filterCustomers());
         maintenanceButton.addActionListener(e -> setRoomMaintenance());
+        availableButton.addActionListener(e -> markRoomAvailable());
+        markCleanButton.addActionListener(e -> markRoomClean());
         pickCheckInButton.addActionListener(e -> pickDate(checkInField));
         pickCheckOutButton.addActionListener(e -> pickDate(checkOutField));
 
@@ -429,8 +431,16 @@ public class HotelManagementGUI {
             return;
         }
         tableModel.setRowCount(0);
-        for (Customer c : customers) {
-            if (c.getName().toLowerCase().contains(query) || c.getPhone().contains(query) || c.getEmail().toLowerCase().contains(query) || String.valueOf(c.getRoomNumber()).contains(query)) {
+        ArrayList<Customer> combined = new ArrayList<>();
+        combined.addAll(customers);
+        combined.addAll(allCustomers);
+        for (Customer c : combined) {
+            String name = c.getName() == null ? "" : c.getName().toLowerCase();
+            String phone = c.getPhone() == null ? "" : c.getPhone().toLowerCase();
+            String email = c.getEmail() == null ? "" : c.getEmail().toLowerCase();
+            String roomStr = String.valueOf(c.getRoomNumber());
+            String statusStr = c.getStatus() == null ? "" : c.getStatus().name().toLowerCase();
+            if (name.contains(query) || phone.contains(query) || email.contains(query) || roomStr.contains(query) || statusStr.contains(query)) {
                 Room room = rooms.stream().filter(r -> r.getRoomNumber() == c.getRoomNumber()).findFirst().orElse(null);
                 if (room != null) {
                     double discount = 0;
@@ -482,7 +492,19 @@ public class HotelManagementGUI {
             JOptionPane.showMessageDialog(frame, "Room not found!");
             return;
         }
+        Room.Status prev = room.getStatus();
+        if (prev == Room.Status.OCCUPIED || prev == Room.Status.RESERVED) {
+            JOptionPane.showMessageDialog(frame, "Cannot mark room available while it's occupied or reserved!");
+            return;
+        }
+        if (prev == Room.Status.MAINTENANCE) {
+            JOptionPane.showMessageDialog(frame, "Room is under maintenance. Finish maintenance first.");
+            return;
+        }
         room.setAvailable();
+        updateBookingTable();
+        updateNotifications();
+        notificationArea.append("Room " + roomNumber + " status changed: " + prev + " -> " + room.getStatus() + "\n");
         JOptionPane.showMessageDialog(frame, "Room marked as available!");
     }
 
@@ -496,11 +518,19 @@ public class HotelManagementGUI {
             JOptionPane.showMessageDialog(frame, "Room not found!");
             return;
         }
-        if (room.getStatus() == Room.Status.DIRTY) {
+        Room.Status prev = room.getStatus();
+        if (prev == Room.Status.DIRTY || prev == Room.Status.CLEANING) {
             room.setAvailable();
+            updateBookingTable();
+            updateNotifications();
+            notificationArea.append("Room " + roomNumber + " status changed: " + prev + " -> " + room.getStatus() + "\n");
             JOptionPane.showMessageDialog(frame, "Room marked as clean and available!");
+        } else if (prev == Room.Status.OCCUPIED || prev == Room.Status.RESERVED) {
+            JOptionPane.showMessageDialog(frame, "Room is currently in use and cannot be marked clean!");
+        } else if (prev == Room.Status.MAINTENANCE) {
+            JOptionPane.showMessageDialog(frame, "Room is under maintenance. Finish maintenance first.");
         } else {
-            JOptionPane.showMessageDialog(frame, "Room is not dirty!");
+            JOptionPane.showMessageDialog(frame, "Room is already available.");
         }
     }
 
@@ -555,5 +585,6 @@ public class HotelManagementGUI {
 
     public static void main(String[] args) { SwingUtilities.invokeLater(HotelManagementGUI::new); }
 }
+
 
 
