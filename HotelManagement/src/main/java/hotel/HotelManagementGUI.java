@@ -2,8 +2,6 @@ package hotel;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -17,9 +15,9 @@ public class HotelManagementGUI {
     private JFrame frame;
     private JTable bookingTable;
     private DefaultTableModel tableModel;
-    private JTextField nameField, phoneField, emailField, roomField, checkInField, checkOutField, searchField, discountField;
+    private JTextField nameField, phoneField, emailField, roomField, checkInField, checkOutField, discountField;
     private JButton bookButton, cancelButton, orderFoodButton, viewButton, availableRoomsButton;
-    private JButton historyButton, billButton, reportButton, searchButton, maintenanceButton, availableButton;
+    private JButton historyButton, billButton, reportButton, availableButton;
     private JButton checkInButton, checkOutButton, markCleanButton;
     private JButton pickCheckInButton, pickCheckOutButton;
     private JTextArea notificationArea;
@@ -93,7 +91,6 @@ public class HotelManagementGUI {
         roomField = new JTextField(5);
         checkInField = new JTextField(10);
         checkOutField = new JTextField(10);
-        searchField = new JTextField(15);
         discountField = new JTextField(5);
 
         bookButton = new JButton("Reserve Room");
@@ -106,8 +103,6 @@ public class HotelManagementGUI {
         historyButton = new JButton("Booking History");
         billButton = new JButton("Generate Bill");
         reportButton = new JButton("Reports");
-        searchButton = new JButton("Search");
-        maintenanceButton = new JButton("Set Maintenance");
         availableButton = new JButton("Mark Available");
         markCleanButton = new JButton("Mark Clean");
         pickCheckInButton = new JButton("Pick");
@@ -133,10 +128,8 @@ public class HotelManagementGUI {
         inputPanel.add(pickCheckOutButton);
         inputPanel.add(new JLabel("Discount ($):"));
         inputPanel.add(discountField);
-        inputPanel.add(new JLabel("Search Customer:"));
-        inputPanel.add(searchField);
 
-        JPanel buttonPanel = new JPanel(new GridLayout(2, 7, 5, 5));
+        JPanel buttonPanel = new JPanel(new GridLayout(2, 6, 5, 5));
         buttonPanel.add(bookButton);
         buttonPanel.add(cancelButton);
         buttonPanel.add(checkInButton);
@@ -147,8 +140,6 @@ public class HotelManagementGUI {
         buttonPanel.add(historyButton);
         buttonPanel.add(billButton);
         buttonPanel.add(reportButton);
-        buttonPanel.add(searchButton);
-        buttonPanel.add(maintenanceButton);
         buttonPanel.add(availableButton);
         buttonPanel.add(markCleanButton);
 
@@ -180,18 +171,13 @@ public class HotelManagementGUI {
         historyButton.addActionListener(e -> viewBookingHistory());
         billButton.addActionListener(e -> generateInvoice());
         reportButton.addActionListener(e -> generateReport());
-        searchButton.addActionListener(e -> filterCustomers());
-        maintenanceButton.addActionListener(e -> setRoomMaintenance());
+        // search and maintenance actions removed
         availableButton.addActionListener(e -> markRoomAvailable());
         markCleanButton.addActionListener(e -> markRoomClean());
         pickCheckInButton.addActionListener(e -> pickDate(checkInField));
         pickCheckOutButton.addActionListener(e -> pickDate(checkOutField));
 
-        searchField.getDocument().addDocumentListener(new DocumentListener() {
-            public void changedUpdate(DocumentEvent e) { filterCustomers(); }
-            public void removeUpdate(DocumentEvent e) { filterCustomers(); }
-            public void insertUpdate(DocumentEvent e) { filterCustomers(); }
-        });
+        // live search removed
     }
 
     private void viewRooms() {
@@ -424,63 +410,7 @@ public class HotelManagementGUI {
         JOptionPane.showMessageDialog(frame, report);
     }
 
-    private void filterCustomers() {
-        String query = searchField.getText().trim().toLowerCase();
-        if (query.isEmpty()) {
-            updateBookingTable();
-            return;
-        }
-        tableModel.setRowCount(0);
-        ArrayList<Customer> combined = new ArrayList<>();
-        combined.addAll(customers);
-        combined.addAll(allCustomers);
-        for (Customer c : combined) {
-            String name = c.getName() == null ? "" : c.getName().toLowerCase();
-            String phone = c.getPhone() == null ? "" : c.getPhone().toLowerCase();
-            String email = c.getEmail() == null ? "" : c.getEmail().toLowerCase();
-            String roomStr = String.valueOf(c.getRoomNumber());
-            String statusStr = c.getStatus() == null ? "" : c.getStatus().name().toLowerCase();
-            if (name.contains(query) || phone.contains(query) || email.contains(query) || roomStr.contains(query) || statusStr.contains(query)) {
-                Room room = rooms.stream().filter(r -> r.getRoomNumber() == c.getRoomNumber()).findFirst().orElse(null);
-                if (room != null) {
-                    double discount = 0;
-                    try { discount = Double.parseDouble(discountField.getText()); } catch (Exception e) {}
-                    tableModel.addRow(new Object[]{
-                            c.getName(),
-                            c.getPhone(),
-                            c.getEmail(),
-                            c.getRoomNumber(),
-                            c.getStatus(),
-                            c.getCheckInDate(),
-                            c.getCheckOutDate(),
-                            c.getRoomBill(room.getPricePerDay()),
-                            c.getFoodBill(),
-                            c.getTax(taxRate),
-                            discount,
-                            c.getGrandTotal(room.getPricePerDay(), taxRate, discount)
-                    });
-                }
-            }
-        }
-    }
-
-    private void setRoomMaintenance() {
-        int roomNumber;
-        try { roomNumber = Integer.parseInt(roomField.getText()); }
-        catch (NumberFormatException e) { JOptionPane.showMessageDialog(frame, "Invalid room number!"); return; }
-
-        Room room = rooms.stream().filter(r -> r.getRoomNumber() == roomNumber).findFirst().orElse(null);
-        if (room == null) {
-            JOptionPane.showMessageDialog(frame, "Room not found!");
-            return;
-        }
-        if (!room.isAvailable()) {
-            JOptionPane.showMessageDialog(frame, "Room is currently in use!");
-            return;
-        }
-        room.setMaintenance();
-        JOptionPane.showMessageDialog(frame, "Room set to maintenance!");
-    }
+    // search and maintenance features removed
 
     private void markRoomAvailable() {
         int roomNumber;
